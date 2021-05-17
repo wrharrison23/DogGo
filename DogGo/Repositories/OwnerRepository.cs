@@ -64,50 +64,36 @@ namespace DogGo.Repositories
             using (SqlConnection conn = Connection)
             {
                 conn.Open();
+
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"
-                        SELECT Owner.Id as OwnerId, 
-                        Email, 
-                        Owner.Name as OwnerName, 
-                        Address, NeighborhoodId, 
-                        Phone, 
-                        Dog.Id as DogId, 
-                        Dog.Name as DogName, 
-                        OwnerId, 
-                        Breed, 
-                        Notes, 
-                        ImageUrl
-                        FROM Owner JOIN Dog
-                        ON Owner.Id = Dog.OwnerId
-                        WHERE Owner.Id = @id;
-                    ";
+                        SELECT Id, [Name], Email, Address, Phone, NeighborhoodId
+                        FROM Owner
+                        WHERE Id = @id";
 
                     cmd.Parameters.AddWithValue("@id", id);
 
                     SqlDataReader reader = cmd.ExecuteReader();
-                    Owner owner = new Owner();
-                    while (reader.Read())
+
+                    if (reader.Read())
                     {
-                        if (owner.Name is null)
+                        Owner owner = new Owner()
                         {
-                            owner.Id = id;
-                            owner.Name = reader.GetString(reader.GetOrdinal("OwnerName"));
-                            owner.Address = reader.GetString(reader.GetOrdinal("Address"));
-                            owner.NeighborhoodId = reader.GetInt32(reader.GetOrdinal("NeighborhoodId"));
-                            owner.Phone = reader.GetString(reader.GetOrdinal("Phone"));
-                        }
-                        Dog dog = new Dog()
-                        {
-                            Id = reader.GetInt32(reader.GetOrdinal("DogId")),
-                            Name = reader.GetString(reader.GetOrdinal("DogName")),
-                            OwnerId = id,
-                            Breed = reader.GetString(reader.GetOrdinal("Breed"))
+                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                            Name = reader.GetString(reader.GetOrdinal("Name")),
+                            Email = reader.GetString(reader.GetOrdinal("Email")),
+                            Address = reader.GetString(reader.GetOrdinal("Address")),
+                            Phone = reader.GetString(reader.GetOrdinal("Phone")),
+                            NeighborhoodId = reader.GetInt32(reader.GetOrdinal("NeighborhoodId"))
                         };
-                        owner.Dogs.Add(dog);
+
+                        reader.Close();
+                        return owner;
                     }
+
                     reader.Close();
-                    return owner;
+                    return null;
                 }
             }
         }

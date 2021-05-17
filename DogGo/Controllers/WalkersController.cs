@@ -1,10 +1,12 @@
 ﻿using DogGo.Models;
+using DogGo.Models.ViewModels;
 using DogGo.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace DogGo.Controllers
@@ -15,8 +17,17 @@ namespace DogGo.Controllers
         // GET: WalkersController
         public ActionResult Index()
         {
-            List<Walker> walkers = _walkerRepo.GetAllWalkers();
+            int userId = GetCurrentUserId();
+            List<Walker> walkers = new List<Walker>();
 
+            if (userId == 0)
+            {
+               walkers = _walkerRepo.GetAllWalkers();
+            } else
+            {
+                Owner owner = _ownerRepo.GetOwnerById(GetCurrentUserId());
+                walkers = _walkerRepo.GetWalkersInNeighborhood(owner.NeighborhoodId);
+            }
             return View(walkers);
         }
 
@@ -25,13 +36,17 @@ namespace DogGo.Controllers
         public ActionResult Details(int id)
         {
             Walker walker = _walkerRepo.GetWalkerById(id);
+            List<Walk> walks = _walkRepo.GetWalksByWalkerId(walker.Id);
+            Neighborhood neighborhood = _neighborhoodRepo.GetNeighborhoodById(walker.NeighborhoodId);
 
-            if (walker == null)
+            WalkerProfileViewModel vm = new WalkerProfileViewModel()
             {
-                return NotFound();
-            }
+                Walker = walker,
+                Walks = walks,
+                Neighborhood = neighborhood
+            };
 
-            return View(walker);
+            return View(vm);
         }
 
         // GET: WalkersController/Create
@@ -96,12 +111,34 @@ namespace DogGo.Controllers
                 return View();
             }
         }
+
+        private int GetCurrentUserId()
+        {
+            string id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int userId;
+            try
+            {
+                userId = int.Parse(id);
+            }
+            catch (Exception ex)
+            {
+                userId = 0;
+            }
+            return userId;
+        }
+
         private readonly IWalkerRepository _walkerRepo;
+        private readonly IWalkRepository _walkRepo;
+        private readonly INeighborhoodRepository _neighborhoodRepo;
+        private readonly IOwnerRepository _ownerRepo;  
 
         // ASP.NET will give us an instance of our Walker Repository. This is called "Dependency Injection"
-        public WalkersController(IWalkerRepository walkerRepository)
+        public WalkersController(IWalkerRepository walkerRepository, IWalkRepository walkRepository, INeighborhoodRepository neighborhoodRepository, IOwnerRepository ownerRepository)
         {
             _walkerRepo = walkerRepository;
+            _walkRepo = walkRepository;
+            _neighborhoodRepo = neighborhoodRepository;
+            _ownerRepo = ownerRepository;
         }
     }
 }
